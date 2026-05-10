@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import { Suspense } from "react"
 import { RegisterForm } from "@/components/auth/register-form"
 
 export const metadata: Metadata = {
@@ -7,5 +8,9 @@ export const metadata: Metadata = {
 }
 
 export default function RegisterPage() {
-  return <RegisterForm />
+  return (
+    <Suspense fallback={<div className="h-96" />}>
+      <RegisterForm />
+    </Suspense>
+  )
 }
