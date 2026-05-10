@@ -4,7 +4,8 @@ import { OnEvent } from "@nestjs/event-emitter"
 import OpenAI from "openai"
 import { PrismaService } from "../common/prisma.service"
 import { RedisService } from "../common/redis.service"
-import type { FeedType, WatchEventType, Prisma } from "@prisma/client"
+import { Prisma } from "@prisma/client"
+import type { FeedType, WatchEventType } from "@prisma/client"
 
 /**
  * Recommendation engine — TikTok/Pinterest style.
@@ -372,5 +373,4 @@ export class RecommendationService {
   }
 }
 
-// Hack: import Prisma SQL helper without making circular dep
-import { Prisma } from "@prisma/client"
+// (Prisma is imported at the top of the file)
