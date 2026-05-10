@@ -1,9 +1,0 @@
-# Vercel only deploys the Web app — exclude everything else
-apps/api/
-apps/mobile/
-infra/
-DEPLOY.md
-docker-compose.yml
-docker-compose.*.yml
-**/Dockerfile
-.github/
