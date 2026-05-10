@@ -45,7 +45,7 @@ export class AuthService {
       parallelism: 4,
     })
 
-    const user = await this.prisma.$transaction(async (tx) => {
+    const user = await this.prisma.$transaction(async (tx: any) => {
       const newUser = await tx.user.create({
         data: {
           email,

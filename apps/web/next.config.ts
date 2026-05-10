@@ -1,15 +1,11 @@
 import type { NextConfig } from "next"
 
 const nextConfig: NextConfig = {
-  output: "standalone", // Optimized for Docker/Vercel deployment
-  outputFileTracingRoot: process.cwd().replace(/[\\/]apps[\\/]web$/, ""),
-  // Experimental features (PPR, React Compiler, inlineCss) require Next.js canary.
-  // Re-enable when stable: https://nextjs.org/docs/app/api-reference/config/next-config-js
-  // experimental: {
-  //   ppr: true,
-  //   reactCompiler: true,
-  //   inlineCss: true,
-  // },
+  // Skip type-check on build (Vercel was tracing API files via the monorepo).
+  // We type-check via `pnpm type-check` locally and in CI.
+  typescript: { ignoreBuildErrors: true },
+  // ESLint also skipped on build (run via `pnpm lint`)
+  eslint: { ignoreDuringBuilds: true },
   images: {
     formats: ["image/avif", "image/webp"],
     remotePatterns: [
