@@ -1,0 +1,69 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+.expo/
+.turbo/
+*.tsbuildinfo
+
+# Environment — NEVER commit
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Local uploads (S3 fallback in dev)
+apps/api/uploads/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime
+*.pid
+*.seed
+*.pid.lock
+
+# Prisma
+apps/api/prisma/migrations/dev_*
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Testing
+coverage/
+.nyc_output/
+
+# Misc
+*.pem
+.vercel
+.netlify
+.firebase
+
+# EAS / Expo
+.eas/
+*.ipa
+*.apk
+*.aab

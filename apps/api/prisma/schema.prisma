@@ -1,0 +1,1054 @@
+// StyleSnap AI — Prisma Schema
+// Database: PostgreSQL 16 + pgvector for AI embeddings
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["fullTextSearch", "postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  shadowDatabaseUrl = env("DATABASE_SHADOW_URL")
+  extensions = [pgvector(map: "vector"), pg_trgm]
+}
+
+// ─────────────────────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────────────────────
+
+enum UserRole {
+  USER
+  CREATOR
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum SubscriptionTier {
+  FREE
+  PREMIUM
+  VIP
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELED
+  PAST_DUE
+  TRIALING
+  INCOMPLETE
+  PAUSED
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  NON_BINARY
+  PREFER_NOT
+}
+
+enum ClothingSize {
+  XS
+  S
+  M
+  L
+  XL
+  XXL
+  XXXL
+}
+
+enum StyleCategory {
+  STREETWEAR
+  LUXURY
+  OLD_MONEY
+  TECHWEAR
+  Y2K
+  MINIMAL
+  VINTAGE
+  ANIME
+  CYBERPUNK
+  CASUAL
+  FORMAL
+  ATHLEISURE
+  COTTAGECORE
+  DARK_ACADEMIA
+  COASTAL
+}
+
+enum GenerationStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  QUEUED
+}
+
+enum GenerationMode {
+  OUTFIT
+  VIRTUAL_TRYON
+  BRAND_DESIGN
+  LOGO
+  COLLECTION
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum ProductCategory {
+  TOPS
+  BOTTOMS
+  DRESSES
+  OUTERWEAR
+  SHOES
+  ACCESSORIES
+  BAGS
+  JEWELRY
+  SPORTSWEAR
+  UNDERWEAR
+  SWIMWEAR
+}
+
+enum ReportReason {
+  SPAM
+  INAPPROPRIATE
+  COPYRIGHT
+  HARASSMENT
+  FAKE
+  OTHER
+}
+
+enum NotificationType {
+  LIKE
+  COMMENT
+  FOLLOW
+  GENERATION_DONE
+  NEW_FOLLOWER
+  TRENDING
+  SYSTEM
+  PURCHASE
+  BOARD_INVITE
+  BOARD_ITEM_ADDED
+  HASHTAG_TRENDING
+  AESTHETIC_MATCH
+}
+
+enum BoardVisibility {
+  PRIVATE
+  PUBLIC
+  COLLAB
+  SECRET
+}
+
+enum BoardCategory {
+  MOODBOARD
+  WISHLIST
+  OUTFITS
+  INSPIRATION
+  COLLECTIONS
+  SEASONAL
+  TRAVEL
+  EVENTS
+}
+
+enum WatchEventType {
+  VIEW
+  PAUSE
+  ZOOM
+  SAVE
+  LIKE
+  SHARE
+  SKIP
+  CLICK_PRODUCT
+  TRY_ON
+}
+
+enum FeedType {
+  FOR_YOU
+  FOLLOWING
+  TRENDING
+  LUXURY
+  STREETWEAR
+  MINIMAL
+  SNEAKERS
+  AI_GENERATED
+  MOODBOARDS
+  DISCOVER
+}
+
+enum AestheticTheme {
+  GIRL
+  BOY
+  NEUTRAL
+}
+
+// ─────────────────────────────────────────────────────────────
+// USER
+// ─────────────────────────────────────────────────────────────
+
+model User {
+  id                String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email             String           @unique @db.VarChar(255)
+  username          String           @unique @db.VarChar(50)
+  displayName       String           @db.VarChar(100)
+  passwordHash      String?
+  avatarUrl         String?
+  bannerUrl         String?
+  bio               String?          @db.VarChar(500)
+
+  // Profile
+  gender            Gender?
+  dateOfBirth       DateTime?
+  location          String?          @db.VarChar(100)
+  website           String?
+
+  // Style preferences
+  clothingSize      ClothingSize?
+  shoeSize          Float?
+  topSize           ClothingSize?
+  bottomSize        ClothingSize?
+  favoriteStyles    StyleCategory[]
+  favoriteBrands    String[]
+  budgetRange       String?          @db.VarChar(50)
+  styleInspirations String[]
+
+  // Body measurements (encrypted in practice)
+  bodyType          String?          @db.VarChar(50)
+  heightCm          Float?
+  weightKg          Float?
+
+  // Gamification
+  fashionLevel      Int              @default(1)
+  experiencePoints  Int              @default(0)
+  badges            String[]
+
+  // Social stats (denormalized for perf)
+  followersCount    Int              @default(0)
+  followingCount    Int              @default(0)
+  outfitsCount      Int              @default(0)
+  likesReceivedCount Int             @default(0)
+
+  // Auth
+  role              UserRole         @default(USER)
+  isVerified        Boolean          @default(false)
+  emailVerifiedAt   DateTime?
+  lastSeenAt        DateTime?
+  isActive          Boolean          @default(true)
+  isBanned          Boolean          @default(false)
+  bannedReason      String?
+
+  // OAuth
+  googleId          String?          @unique
+  appleId           String?          @unique
+  tiktokId          String?          @unique
+
+  // Onboarding
+  onboardingCompleted Boolean        @default(false)
+  onboardingStep    Int              @default(0)
+
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  // Aesthetic theme (Girl / Boy / Neutral) — affects UI + recommendations
+  aestheticTheme    AestheticTheme?  @default(NEUTRAL)
+
+  // Relations
+  subscription      Subscription?
+  refreshTokens     RefreshToken[]
+  generations       AiGeneration[]
+  outfits           Outfit[]
+  savedOutfits      SavedOutfit[]
+  likes             Like[]
+  comments          Comment[]
+  followers         Follow[]         @relation("Following")
+  following         Follow[]         @relation("Follower")
+  orders            Order[]
+  products          Product[]        @relation("CreatorProducts")
+  notifications     Notification[]
+  analyticsEvents   AnalyticsEvent[]
+  reports           Report[]         @relation("Reporter")
+  reportsReceived   Report[]         @relation("Reported")
+  referrals         Referral[]       @relation("Referrer")
+  referredBy        Referral?        @relation("Referred")
+
+  // Pinterest-killer relations
+  boards            Board[]          @relation("BoardOwner")
+  boardCollabs      BoardCollaborator[]
+  boardItemsAdded   BoardItem[]      @relation("BoardItemAddedBy")
+  watchEvents       WatchEvent[]
+  searchHistory     SearchHistory[]
+  embedding         UserEmbedding?
+  aestheticProfile  AestheticProfile?
+
+  @@index([email])
+  @@index([username])
+  @@index([role])
+  @@index([createdAt])
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  token     String   @unique
+  userId    String   @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deviceId  String?
+  userAgent String?
+  ipAddress String?
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([token])
+  @@map("refresh_tokens")
+}
+
+// ─────────────────────────────────────────────────────────────
+// SUBSCRIPTIONS
+// ─────────────────────────────────────────────────────────────
+
+model Subscription {
+  id                    String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                String             @unique @db.Uuid
+  user                  User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  tier                  SubscriptionTier   @default(FREE)
+  status                SubscriptionStatus @default(ACTIVE)
+
+  stripeCustomerId      String?            @unique
+  stripeSubscriptionId  String?            @unique
+  stripePriceId         String?
+
+  currentPeriodStart    DateTime?
+  currentPeriodEnd      DateTime?
+  cancelAtPeriodEnd     Boolean            @default(false)
+  canceledAt            DateTime?
+
+  trialStart            DateTime?
+  trialEnd              DateTime?
+
+  // Usage tracking
+  generationsUsedToday  Int                @default(0)
+  generationsResetAt    DateTime           @default(now())
+  totalGenerations      Int                @default(0)
+
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+
+  payments              Payment[]
+
+  @@index([userId])
+  @@index([stripeCustomerId])
+  @@index([status])
+  @@map("subscriptions")
+}
+
+model Payment {
+  id                String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  subscriptionId    String       @db.Uuid
+  subscription      Subscription @relation(fields: [subscriptionId], references: [id])
+
+  stripePaymentIntentId String?  @unique
+  stripeInvoiceId   String?      @unique
+  amount            Int
+  currency          String       @default("eur") @db.VarChar(3)
+  status            String
+
+  createdAt         DateTime     @default(now())
+
+  @@index([subscriptionId])
+  @@map("payments")
+}
+
+// ─────────────────────────────────────────────────────────────
+// AI GENERATIONS
+// ─────────────────────────────────────────────────────────────
+
+model AiGeneration {
+  id              String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId          String           @db.Uuid
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  mode            GenerationMode
+  status          GenerationStatus @default(PENDING)
+
+  // Input
+  inputImageUrl   String?
+  inputPrompt     String?          @db.Text
+  styleCategory   StyleCategory?
+  customParams    Json?
+  creativity      Float            @default(0.7)
+
+  // Output
+  outputImages    String[]
+  selectedIndex   Int?
+  metadata        Json?
+
+  // AI internals
+  model           String?          @db.VarChar(100)
+  provider        String?          @db.VarChar(50)
+  promptTokens    Int?
+  generationTime  Int?             // ms
+  cost            Float?           // in cents
+
+  // Moderation
+  isPublic        Boolean          @default(false)
+  isFlagged       Boolean          @default(false)
+  flagReason      String?
+
+  errorMessage    String?          @db.Text
+
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  outfit          Outfit?
+
+  @@index([userId])
+  @@index([status])
+  @@index([mode])
+  @@index([createdAt])
+  @@map("ai_generations")
+}
+
+// ─────────────────────────────────────────────────────────────
+// OUTFITS / SOCIAL
+// ─────────────────────────────────────────────────────────────
+
+model Outfit {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId          String        @db.Uuid
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  generationId    String?       @unique @db.Uuid
+  generation      AiGeneration? @relation(fields: [generationId], references: [id])
+
+  title           String        @db.VarChar(200)
+  description     String?       @db.VarChar(1000)
+  imageUrl        String
+  thumbnailUrl    String?
+
+  styles          StyleCategory[]
+  tags            String[]
+
+  // Engagement (denormalized)
+  likesCount      Int           @default(0)
+  commentsCount   Int           @default(0)
+  savesCount      Int           @default(0)
+  sharesCount     Int           @default(0)
+  viewsCount      Int           @default(0)
+
+  // Virality score (computed by AI)
+  viralityScore   Float         @default(0)
+  trendingRank    Int?
+
+  isPublic        Boolean       @default(true)
+  isFeatured      Boolean       @default(false)
+  isTrending      Boolean       @default(false)
+
+  // Embedding for similarity search
+  embedding       Unsupported("vector(1536)")?
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  likes           Like[]
+  comments        Comment[]
+  savedBy         SavedOutfit[]
+  products        OutfitProduct[]
+  reports         Report[]
+  boardItems      BoardItem[]
+  hashtags        OutfitHashtag[]
+  watchEvents     WatchEvent[]
+
+  @@index([userId])
+  @@index([isPublic, createdAt])
+  @@index([isTrending, viralityScore])
+  @@index([styles])
+  @@map("outfits")
+}
+
+model SavedOutfit {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  outfitId  String   @db.Uuid
+  outfit    Outfit   @relation(fields: [outfitId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, outfitId])
+  @@index([userId])
+  @@map("saved_outfits")
+}
+
+model Like {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  outfitId  String   @db.Uuid
+  outfit    Outfit   @relation(fields: [outfitId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, outfitId])
+  @@index([outfitId])
+  @@index([userId])
+  @@map("likes")
+}
+
+model Comment {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String    @db.Uuid
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  outfitId    String    @db.Uuid
+  outfit      Outfit    @relation(fields: [outfitId], references: [id], onDelete: Cascade)
+  parentId    String?   @db.Uuid
+  parent      Comment?  @relation("Replies", fields: [parentId], references: [id])
+  replies     Comment[] @relation("Replies")
+
+  content     String    @db.VarChar(1000)
+  likesCount  Int       @default(0)
+  isHidden    Boolean   @default(false)
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([outfitId, createdAt])
+  @@index([userId])
+  @@map("comments")
+}
+
+model Follow {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  followerId  String   @db.Uuid
+  follower    User     @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  followingId String   @db.Uuid
+  following   User     @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  @@unique([followerId, followingId])
+  @@index([followingId])
+  @@index([followerId])
+  @@map("follows")
+}
+
+// ─────────────────────────────────────────────────────────────
+// ECOMMERCE
+// ─────────────────────────────────────────────────────────────
+
+model Product {
+  id              String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  creatorId       String?         @db.Uuid
+  creator         User?           @relation("CreatorProducts", fields: [creatorId], references: [id])
+
+  name            String          @db.VarChar(200)
+  slug            String          @unique @db.VarChar(250)
+  description     String?         @db.Text
+
+  category        ProductCategory
+  styles          StyleCategory[]
+  tags            String[]
+  brand           String?         @db.VarChar(100)
+
+  images          String[]
+  thumbnailUrl    String?
+
+  price           Int             // in cents
+  comparePrice    Int?
+  currency        String          @default("eur") @db.VarChar(3)
+
+  sizes           String[]
+  colors          ProductColor[]
+
+  stock           Int             @default(0)
+  isAvailable     Boolean         @default(true)
+  isFeatured      Boolean         @default(false)
+
+  // External
+  affiliateUrl    String?
+  externalId      String?
+  provider        String?         @db.VarChar(50)
+
+  // SEO
+  metaTitle       String?         @db.VarChar(200)
+  metaDescription String?         @db.VarChar(500)
+
+  // Engagement
+  viewsCount      Int             @default(0)
+  purchasesCount  Int             @default(0)
+  rating          Float?
+  reviewsCount    Int             @default(0)
+
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  outfitProducts  OutfitProduct[]
+  orderItems      OrderItem[]
+
+  @@index([category])
+  @@index([isAvailable, createdAt])
+  @@index([price])
+  @@map("products")
+}
+
+model ProductColor {
+  id         String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  productId  String  @db.Uuid
+  product    Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name       String  @db.VarChar(50)
+  hex        String  @db.VarChar(7)
+  imageUrl   String?
+  stock      Int     @default(0)
+
+  @@index([productId])
+  @@map("product_colors")
+}
+
+model OutfitProduct {
+  id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  outfitId  String  @db.Uuid
+  outfit    Outfit  @relation(fields: [outfitId], references: [id], onDelete: Cascade)
+  productId String  @db.Uuid
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  position  String? @db.VarChar(50) // "top", "bottom", "shoes", etc.
+
+  @@unique([outfitId, productId])
+  @@map("outfit_products")
+}
+
+model Order {
+  id               String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId           String      @db.Uuid
+  user             User        @relation(fields: [userId], references: [id])
+
+  status           OrderStatus @default(PENDING)
+
+  stripePaymentIntentId String? @unique
+
+  // Amounts (cents)
+  subtotal         Int
+  discountAmount   Int         @default(0)
+  shippingAmount   Int         @default(0)
+  taxAmount        Int         @default(0)
+  total            Int
+  currency         String      @default("eur") @db.VarChar(3)
+
+  // Shipping
+  shippingName     String?     @db.VarChar(200)
+  shippingAddress  Json?
+  trackingNumber   String?
+  shippedAt        DateTime?
+  deliveredAt      DateTime?
+
+  couponCode       String?     @db.VarChar(50)
+  notes            String?     @db.VarChar(500)
+
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  items            OrderItem[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("orders")
+}
+
+model OrderItem {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId     String   @db.Uuid
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId   String   @db.Uuid
+  product     Product  @relation(fields: [productId], references: [id])
+
+  quantity    Int
+  size        String?  @db.VarChar(20)
+  color       String?  @db.VarChar(50)
+  unitPrice   Int
+  totalPrice  Int
+
+  @@index([orderId])
+  @@map("order_items")
+}
+
+// ─────────────────────────────────────────────────────────────
+// NOTIFICATIONS
+// ─────────────────────────────────────────────────────────────
+
+model Notification {
+  id          String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String           @db.Uuid
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type        NotificationType
+  title       String           @db.VarChar(200)
+  body        String?          @db.VarChar(500)
+  imageUrl    String?
+  actionUrl   String?
+
+  actorId     String?          @db.Uuid
+  entityId    String?          @db.Uuid
+  entityType  String?          @db.VarChar(50)
+
+  isRead      Boolean          @default(false)
+  readAt      DateTime?
+
+  createdAt   DateTime         @default(now())
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
+  @@map("notifications")
+}
+
+// ─────────────────────────────────────────────────────────────
+// ANALYTICS
+// ─────────────────────────────────────────────────────────────
+
+model AnalyticsEvent {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String?  @db.Uuid
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  event       String   @db.VarChar(100)
+  properties  Json?
+
+  sessionId   String?  @db.VarChar(100)
+  deviceType  String?  @db.VarChar(50)
+  platform    String?  @db.VarChar(50)
+  country     String?  @db.VarChar(2)
+
+  createdAt   DateTime @default(now())
+
+  @@index([event, createdAt])
+  @@index([userId, createdAt])
+  @@map("analytics_events")
+}
+
+// ─────────────────────────────────────────────────────────────
+// MISC
+// ─────────────────────────────────────────────────────────────
+
+model Report {
+  id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  reporterId  String       @db.Uuid
+  reporter    User         @relation("Reporter", fields: [reporterId], references: [id])
+  reportedId  String?      @db.Uuid
+  reported    User?        @relation("Reported", fields: [reportedId], references: [id])
+  outfitId    String?      @db.Uuid
+  outfit      Outfit?      @relation(fields: [outfitId], references: [id])
+
+  reason      ReportReason
+  details     String?      @db.VarChar(1000)
+  isResolved  Boolean      @default(false)
+  resolvedAt  DateTime?
+  adminNote   String?      @db.VarChar(500)
+
+  createdAt   DateTime     @default(now())
+
+  @@index([isResolved])
+  @@map("reports")
+}
+
+model Referral {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  referrerId  String   @db.Uuid
+  referrer    User     @relation("Referrer", fields: [referrerId], references: [id])
+  referredId  String   @unique @db.Uuid
+  referred    User     @relation("Referred", fields: [referredId], references: [id])
+
+  code        String   @unique @db.VarChar(20)
+  rewarded    Boolean  @default(false)
+  rewardedAt  DateTime?
+
+  createdAt   DateTime @default(now())
+
+  @@index([referrerId])
+  @@index([code])
+  @@map("referrals")
+}
+
+model StyleTrend {
+  id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String        @db.VarChar(200)
+  category    StyleCategory
+  description String?       @db.Text
+  imageUrl    String?
+
+  trendScore  Float         @default(0)
+  growthRate  Float         @default(0)
+  source      String?       @db.VarChar(50)  // "tiktok", "instagram", "pinterest"
+
+  tags        String[]
+
+  isActive    Boolean       @default(true)
+  peakDate    DateTime?
+
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([trendScore(sort: Desc)])
+  @@index([category])
+  @@map("style_trends")
+}
+
+// ─────────────────────────────────────────────────────────────
+// BOARDS — Pinterest-killer collections
+// ─────────────────────────────────────────────────────────────
+
+model Board {
+  id              String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId         String              @db.Uuid
+  owner           User                @relation("BoardOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  name            String              @db.VarChar(120)
+  slug            String              @db.VarChar(150)
+  description     String?             @db.VarChar(500)
+  coverImageUrl   String?
+  category        BoardCategory       @default(MOODBOARD)
+  visibility      BoardVisibility     @default(PUBLIC)
+
+  // Aesthetic & taxonomy
+  styles          StyleCategory[]
+  tags            String[]
+  colorPalette    String[]            // hex codes
+
+  // Smart collection: AI auto-fills from rules instead of manual picks
+  isSmart         Boolean             @default(false)
+  smartRules      Json?               // { styles: [...], hashtags: [...], minVirality: 0.7 }
+
+  // Engagement (denormalized)
+  itemsCount      Int                 @default(0)
+  followersCount  Int                 @default(0)
+  viewsCount      Int                 @default(0)
+
+  // Aesthetic embedding (avg of items)
+  embedding       Unsupported("vector(1536)")?
+
+  pinnedItemId    String?             @db.Uuid
+
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  items           BoardItem[]
+  collaborators   BoardCollaborator[]
+
+  @@unique([ownerId, slug])
+  @@index([ownerId, visibility])
+  @@index([category])
+  @@index([visibility, followersCount(sort: Desc)])
+  @@map("boards")
+}
+
+model BoardItem {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  boardId     String   @db.Uuid
+  board       Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+
+  outfitId    String   @db.Uuid
+  outfit      Outfit   @relation(fields: [outfitId], references: [id], onDelete: Cascade)
+
+  addedById   String   @db.Uuid
+  addedBy     User     @relation("BoardItemAddedBy", fields: [addedById], references: [id])
+
+  // For drag & drop ordering
+  position    Int      @default(0)
+  note        String?  @db.VarChar(280)
+
+  createdAt   DateTime @default(now())
+
+  @@unique([boardId, outfitId])
+  @@index([boardId, position])
+  @@map("board_items")
+}
+
+model BoardCollaborator {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  boardId     String   @db.Uuid
+  board       Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+
+  userId      String   @db.Uuid
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  canEdit     Boolean  @default(true)
+  invitedAt   DateTime @default(now())
+  acceptedAt  DateTime?
+
+  @@unique([boardId, userId])
+  @@map("board_collaborators")
+}
+
+// ─────────────────────────────────────────────────────────────
+// HASHTAGS & TRENDING TOPICS
+// ─────────────────────────────────────────────────────────────
+
+model Hashtag {
+  id            String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tag           String          @unique @db.VarChar(50)
+  displayName   String?         @db.VarChar(60)
+
+  postsCount    Int             @default(0)
+  followersCount Int            @default(0)
+
+  // Trending metrics (computed by cron)
+  trendScore    Float           @default(0)
+  growthRate7d  Float           @default(0)
+  isTrending    Boolean         @default(false)
+
+  // Optional category
+  category      StyleCategory?
+
+  // Embedding for semantic search
+  embedding     Unsupported("vector(1536)")?
+
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  outfits       OutfitHashtag[]
+
+  @@index([tag])
+  @@index([isTrending, trendScore(sort: Desc)])
+  @@map("hashtags")
+}
+
+model OutfitHashtag {
+  id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  outfitId  String  @db.Uuid
+  outfit    Outfit  @relation(fields: [outfitId], references: [id], onDelete: Cascade)
+
+  hashtagId String  @db.Uuid
+  hashtag   Hashtag @relation(fields: [hashtagId], references: [id], onDelete: Cascade)
+
+  @@unique([outfitId, hashtagId])
+  @@index([hashtagId])
+  @@map("outfit_hashtags")
+}
+
+// ─────────────────────────────────────────────────────────────
+// RECOMMENDATION ENGINE — embeddings & watch events
+// ─────────────────────────────────────────────────────────────
+
+model UserEmbedding {
+  userId       String                              @id @db.Uuid
+  user         User                                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Primary aesthetic vector (averaged from interactions)
+  vector       Unsupported("vector(1536)")?
+
+  // Sub-vectors for finer-grained reco
+  styleVector  Unsupported("vector(1536)")?
+  colorVector  Unsupported("vector(384)")?
+
+  // Last computed at
+  lastComputedAt DateTime  @default(now())
+  interactionCount Int     @default(0)
+
+  @@map("user_embeddings")
+}
+
+model WatchEvent {
+  id           String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       String         @db.Uuid
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  outfitId     String         @db.Uuid
+  outfit       Outfit         @relation(fields: [outfitId], references: [id], onDelete: Cascade)
+
+  eventType    WatchEventType
+  durationMs   Int?           // for VIEW, PAUSE, ZOOM events
+  feedType     FeedType?      // which feed surfaced this outfit
+  position     Int?           // position in the feed when shown
+
+  sessionId    String?        @db.VarChar(100)
+  deviceType   String?        @db.VarChar(50)
+
+  createdAt    DateTime       @default(now())
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([outfitId, eventType])
+  @@map("watch_events")
+}
+
+model RecommendationCache {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String   @db.Uuid
+  feedType    FeedType
+  outfitIds   String[] @db.Uuid
+  scores      Float[]
+  computedAt  DateTime @default(now())
+  expiresAt   DateTime
+
+  @@unique([userId, feedType])
+  @@index([userId, feedType])
+  @@map("recommendation_cache")
+}
+
+model AestheticProfile {
+  userId             String        @id @db.Uuid
+  user               User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Top inferred styles (computed from watch events + saves)
+  topStyles          StyleCategory[]
+  topColors          String[]      // hex codes
+  topBrands          String[]
+  topHashtags        String[]
+
+  // Stats
+  totalSaves         Int           @default(0)
+  totalLikes         Int           @default(0)
+  avgSessionMinutes  Float         @default(0)
+  aestheticScore     Float         @default(0)  // 0-100, how distinctive their style is
+  diversityScore     Float         @default(0)  // 0-100, range of styles
+
+  // AI-generated personality archetype, e.g. "Old Money + Coastal"
+  archetypeName      String?       @db.VarChar(100)
+  archetypeBio       String?       @db.VarChar(280)
+
+  computedAt         DateTime      @default(now())
+
+  @@map("aesthetic_profiles")
+}
+
+// ─────────────────────────────────────────────────────────────
+// SEARCH
+// ─────────────────────────────────────────────────────────────
+
+model SearchHistory {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String   @db.Uuid
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  query       String   @db.VarChar(200)
+  searchType  String   @db.VarChar(20)   // "text" | "image" | "hashtag"
+  resultCount Int      @default(0)
+
+  createdAt   DateTime @default(now())
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("search_history")
+}
+
+model TrendingTopic {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  topic       String   @db.VarChar(120)
+  type        String   @db.VarChar(30)   // "hashtag" | "style" | "creator" | "product"
+
+  score       Float    @default(0)
+  searchVolume Int     @default(0)
+  growthRate  Float    @default(0)
+
+  source      String?  @db.VarChar(50)   // "internal" | "tiktok" | "instagram"
+  region      String?  @db.VarChar(2)
+
+  isActive    Boolean  @default(true)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([type, score(sort: Desc)])
+  @@map("trending_topics")
+}
+

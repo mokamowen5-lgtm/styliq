@@ -1,0 +1,51 @@
+{
+  "expo": {
+    "name": "STYLIQ",
+    "slug": "styliq",
+    "version": "1.0.0",
+    "scheme": "stylesnap",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "splash": {
+      "resizeMode": "cover",
+      "backgroundColor": "#000000"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "ai.stylesnap.app"
+    },
+    "android": {
+      "package": "ai.stylesnap.app"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "STYLIQ uses your photos to generate AI outfits."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "STYLIQ uses your camera to capture photos for AI generation."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      }
+    }
+  }
+}

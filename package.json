@@ -1,0 +1,37 @@
+{
+  "name": "stylesnap-ai",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "type-check": "turbo run type-check",
+    "db:generate": "pnpm --filter @stylesnap/api run db:generate",
+    "db:push": "pnpm --filter @stylesnap/api run db:push",
+    "db:migrate": "pnpm --filter @stylesnap/api run db:migrate",
+    "db:seed": "pnpm --filter @stylesnap/api run db:seed",
+    "db:studio": "pnpm --filter @stylesnap/api exec prisma studio",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "clean": "turbo run clean && rm -rf node_modules"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.0",
+    "prettier": "^3.3.3",
+    "prettier-plugin-tailwindcss": "^0.6.8",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "eslint": "^9.0.0",
+    "typescript": "^5.6.0"
+  },
+  "packageManager": "pnpm@9.12.0",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  }
+}

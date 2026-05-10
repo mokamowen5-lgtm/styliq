@@ -1,0 +1,12 @@
+{
+  "name": "StyleSnap AI",
+  "short_name": "StyleSnap",
+  "description": "AI-powered fashion platform",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#09090b",
+  "theme_color": "#7c3aed",
+  "orientation": "portrait",
+  "icons": [],
+  "categories": ["lifestyle", "shopping", "social"]
+}
