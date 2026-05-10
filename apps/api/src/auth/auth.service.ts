@@ -153,7 +153,7 @@ export class AuthService {
         })
       } else {
         const username = await this.generateUsername(profile.displayName)
-        user = await this.prisma.$transaction(async (tx) => {
+        user = await this.prisma.$transaction(async (tx: any) => {
           const newUser = await tx.user.create({
             data: {
               email: profile.email,
