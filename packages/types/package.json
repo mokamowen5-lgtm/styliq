@@ -11,11 +11,10 @@
     }
   },
   "scripts": {
-    "build": "tsup src/index.ts --format esm,cjs --dts",
+    "build": "echo 'No build needed — consumed as TS source via tsconfig paths'",
     "type-check": "tsc --noEmit"
   },
   "devDependencies": {
-    "tsup": "^8.3.0",
     "typescript": "^5.6.0"
   }
 }

@@ -1,9 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "cd ../.. && pnpm install --frozen-lockfile=false && pnpm --filter @stylesnap/web build",
-  "installCommand": "echo 'Skipping default install — handled in buildCommand'",
   "framework": "nextjs",
-  "ignoreCommand": "git diff HEAD^ HEAD --quiet ./ ../../packages/types/",
+  "buildCommand": "cd ../.. && pnpm install --frozen-lockfile=false --ignore-scripts && pnpm --filter=@stylesnap/web build",
+  "installCommand": "echo 'install handled in buildCommand'",
   "headers": [
     {
       "source": "/(.*)",

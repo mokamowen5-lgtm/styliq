@@ -6,6 +6,8 @@
     "declarationMap": true,
     "sourceMap": true,
     "noEmit": false,
+    "incremental": false,
+    "composite": false,
     "module": "ESNext",
     "moduleResolution": "Bundler"
   },
