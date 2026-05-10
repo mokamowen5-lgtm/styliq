@@ -7,6 +7,7 @@
     "packages/*"
   ],
   "scripts": {
+    "postinstall": "pnpm --filter @stylesnap/api exec prisma generate || echo 'prisma generate skipped'",
     "dev": "turbo run dev",
     "build": "turbo run build",
     "test": "turbo run test",
