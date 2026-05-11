@@ -24,35 +24,32 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Generate Prisma client (use direct path to bypass pnpm filter resolution)
+# Generate Prisma client + build API from inside the API workspace
 WORKDIR /app/apps/api
-RUN npx --no-install prisma generate || ../../node_modules/.bin/prisma generate
-
-# Build the API (NestJS → dist/)
-RUN ../../node_modules/.bin/nest build
+RUN pnpm exec prisma generate
+RUN pnpm exec nest build
 
 # Back to root
 WORKDIR /app
 
 # ── runner ────────────────────────────────────────────────────
-FROM node:20-alpine AS runner
+FROM base AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=4000
 
 RUN apk add --no-cache dumb-init openssl tini
 
-# Copy built artifacts
-COPY --from=builder /app/apps/api/dist ./dist
-COPY --from=builder /app/apps/api/prisma ./prisma
-COPY --from=builder /app/apps/api/package.json ./
-COPY --from=builder /app/node_modules ./node_modules
+# Copy ENTIRE built apps/api workspace + monorepo node_modules (preserves pnpm symlinks)
+COPY --from=builder /app/apps/api ./apps/api
 COPY --from=builder /app/packages ./packages
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json /app/pnpm-workspace.yaml /app/pnpm-lock.yaml ./
+
+WORKDIR /app/apps/api
 
 EXPOSE 4000
 
-USER node
-
 ENTRYPOINT ["tini", "--"]
-# On startup: run prisma migrate deploy if MIGRATE_ON_BOOT=true, then start the API
-CMD ["sh", "-c", "if [ \"$MIGRATE_ON_BOOT\" = \"true\" ]; then ./node_modules/.bin/prisma migrate deploy 2>/dev/null || ./node_modules/.bin/prisma db push --accept-data-loss 2>/dev/null || true; fi && node dist/main"]
+# On startup: run prisma db push if MIGRATE_ON_BOOT=true, then start the API
+CMD ["sh", "-c", "if [ \"$MIGRATE_ON_BOOT\" = \"true\" ]; then pnpm exec prisma db push --accept-data-loss || true; fi && node dist/main"]
