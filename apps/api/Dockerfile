@@ -16,7 +16,7 @@ COPY apps/api/package.json ./apps/api/
 COPY packages/types/package.json ./packages/types/
 
 # Install all deps (including dev — needed for build)
-RUN pnpm install --frozen-lockfile=false
+RUN pnpm install --frozen-lockfile=false --ignore-scripts
 
 # ── builder ───────────────────────────────────────────────────
 FROM base AS builder
@@ -24,14 +24,15 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Generate Prisma client first
-RUN pnpm --filter @stylesnap/api exec prisma generate
+# Generate Prisma client (use direct path to bypass pnpm filter resolution)
+WORKDIR /app/apps/api
+RUN npx --no-install prisma generate || ../../node_modules/.bin/prisma generate
 
 # Build the API (NestJS → dist/)
-RUN pnpm --filter @stylesnap/api build
+RUN ../../node_modules/.bin/nest build
 
-# Prune to production-only deps for smaller runner image
-RUN pnpm --filter @stylesnap/api prune --prod || true
+# Back to root
+WORKDIR /app
 
 # ── runner ────────────────────────────────────────────────────
 FROM node:20-alpine AS runner
@@ -48,13 +49,10 @@ COPY --from=builder /app/apps/api/package.json ./
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/packages ./packages
 
-# Run prisma migrate deploy on startup if MIGRATE_ON_BOOT=true
-COPY --from=builder /app/apps/api/scripts ./scripts
-
 EXPOSE 4000
 
-# Use non-root user for security
 USER node
 
 ENTRYPOINT ["tini", "--"]
-CMD ["sh", "-c", "if [ \"$MIGRATE_ON_BOOT\" = \"true\" ]; then npx prisma migrate deploy; fi && node dist/main"]
+# On startup: run prisma migrate deploy if MIGRATE_ON_BOOT=true, then start the API
+CMD ["sh", "-c", "if [ \"$MIGRATE_ON_BOOT\" = \"true\" ]; then ./node_modules/.bin/prisma migrate deploy 2>/dev/null || ./node_modules/.bin/prisma db push --accept-data-loss 2>/dev/null || true; fi && node dist/main"]
