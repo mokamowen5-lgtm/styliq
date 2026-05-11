@@ -4,12 +4,11 @@
     "module": "CommonJS",
     "moduleResolution": "Node",
     "lib": ["ES2022"],
+    "rootDir": "./src",
     "outDir": "./dist",
     "baseUrl": "./",
     "paths": {
-      "@/*": ["src/*"],
-      "@stylesnap/types": ["../../packages/types/src/index.ts"],
-      "@stylesnap/types/*": ["../../packages/types/src/*"]
+      "@/*": ["src/*"]
     },
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
@@ -23,15 +22,11 @@
     "resolveJsonModule": true,
     "declaration": false,
     "sourceMap": true,
-    "incremental": true,
+    "incremental": false,
     "noEmit": false
   },
-  "include": [
-    "src/**/*",
-    "prisma/seed.ts",
-    "../../packages/types/src/**/*"
-  ],
-  "exclude": ["node_modules", "dist", "test"],
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "test", "**/*.spec.ts"],
   "ts-node": {
     "transpileOnly": true,
     "files": true,

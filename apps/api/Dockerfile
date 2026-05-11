@@ -10,13 +10,16 @@ RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
 FROM base AS builder
 WORKDIR /app
 
-# Copy the entire monorepo (we need all source + lockfile for workspace symlinks)
+# Copy the entire monorepo so pnpm workspace symlinks resolve correctly
 COPY . .
 
-# Install everything — this creates proper pnpm workspace symlinks in apps/api/node_modules
+# Install everything (creates proper symlinks for workspace deps)
 RUN pnpm install --frozen-lockfile=false --ignore-scripts
 
-# Generate Prisma client + build API (run from inside the API workspace)
+# Build the shared types package first (produces packages/types/dist)
+RUN pnpm --filter @stylesnap/types run build
+
+# Generate Prisma client + build the API
 WORKDIR /app/apps/api
 RUN pnpm exec prisma generate
 RUN pnpm exec nest build
@@ -29,7 +32,7 @@ ENV PORT=4000
 
 RUN apk add --no-cache dumb-init openssl tini
 
-# Copy ENTIRE build output (preserves all pnpm symlinks for workspace deps)
+# Copy the entire built monorepo (preserves pnpm symlinks)
 COPY --from=builder /app /app
 
 WORKDIR /app/apps/api
@@ -37,5 +40,5 @@ WORKDIR /app/apps/api
 EXPOSE 4000
 
 ENTRYPOINT ["tini", "--"]
-# On startup: push DB schema if MIGRATE_ON_BOOT=true, then start the API
+# Push DB schema on first boot if MIGRATE_ON_BOOT=true, then start the API.
 CMD ["sh", "-c", "if [ \"$MIGRATE_ON_BOOT\" = \"true\" ]; then pnpm exec prisma db push --accept-data-loss || true; fi && node dist/main"]
