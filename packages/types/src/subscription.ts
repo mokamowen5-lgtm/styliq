@@ -64,7 +64,7 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
     price: 900,
     currency: "eur",
     interval: "month",
-    stripePriceId: process.env.STRIPE_PREMIUM_PRICE_ID ?? "",
+    stripePriceId: "",
     isPopular: true,
     features: [
       "Unlimited AI generations",
@@ -90,7 +90,7 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
     price: 2900,
     currency: "eur",
     interval: "month",
-    stripePriceId: process.env.STRIPE_VIP_PRICE_ID ?? "",
+    stripePriceId: "",
     features: [
       "Everything in Premium",
       "Ultra-fast generation",
